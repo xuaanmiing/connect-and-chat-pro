@@ -4,6 +4,7 @@ import { scenarios, Scenario, categoryInfo } from "@/data/scenarios";
 import ScenarioCard from "@/components/ScenarioCard";
 import ScenarioPlayer from "@/components/ScenarioPlayer";
 import AirportCheckIn from "@/components/AirportCheckIn";
+import TherapistDashboard from "@/components/TherapistDashboard";
 import Onboarding from "@/pages/Onboarding";
 import ModeSelect from "@/pages/ModeSelect";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ type CategoryFilter = "all" | "food" | "help" | "shopping" | "social";
 type AppView =
   | "onboarding"
   | "mode-select"
+  | "therapist-dashboard"
   | "home"
   | "scenario"
   | "airport-checkin"
@@ -28,7 +30,9 @@ const Index = () => {
 
   useEffect(() => {
     const profile = getProfile();
-    if (profile) setView("mode-select");
+    if (profile) {
+      setView(profile.role === "therapist" ? "therapist-dashboard" : "mode-select");
+    }
   }, []);
 
   const handleLogout = () => {
@@ -40,7 +44,25 @@ const Index = () => {
     filter === "all" ? scenarios : scenarios.filter((s) => s.category === filter);
 
   if (view === "onboarding") {
-    return <Onboarding onComplete={() => setView("mode-select")} />;
+    return (
+      <Onboarding
+        onComplete={() => {
+          const profile = getProfile();
+          setView(profile?.role === "therapist" ? "therapist-dashboard" : "mode-select");
+        }}
+      />
+    );
+  }
+
+  if (view === "therapist-dashboard") {
+    const therapistProfile = getProfile();
+
+    if (!therapistProfile || therapistProfile.role !== "therapist") {
+      setView("onboarding");
+      return null;
+    }
+
+    return <TherapistDashboard profile={therapistProfile} onBack={handleLogout} />;
   }
 
   if (view === "mode-select") {

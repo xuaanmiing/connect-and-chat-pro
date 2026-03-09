@@ -10,7 +10,6 @@ interface OnboardingProps {
 
 const roles = [
   { value: "learner" as const, label: "I'm practising", icon: "🎓" },
-  { value: "caregiver" as const, label: "I'm a caregiver", icon: "🤝" },
   { value: "therapist" as const, label: "I'm a therapist", icon: "💼" },
 ];
 
