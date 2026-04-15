@@ -3,7 +3,8 @@ import { flushSync } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { airportCheckInScenario } from "@/data/airportScenario";
+import { airportCheckInScenario, Checkpoint } from "@/data/airportScenario";
+import { scenarios } from "@/data/scenarios";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import CameraFeed from "@/components/CameraFeed";
@@ -15,9 +16,121 @@ import { ArrowLeft, Mic, MicOff, Lightbulb, RotateCcw, Star, Loader2 } from "luc
 interface AirportCheckInProps {
   onBack: () => void;
   mode?: "voice" | "aac";
+  scenarioId?: string;
 }
 
-const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
+const tokenize = (input: string) =>
+  input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 1);
+
+const toCardId = (input: string, index: number) =>
+  `${input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "option"}-${index}`;
+
+const pickEmoji = (label: string) => {
+  const lower = label.toLowerCase();
+  if (lower.includes("yes")) return "✅";
+  if (lower.includes("no")) return "❌";
+  if (lower.includes("help")) return "🆘";
+  if (lower.includes("please")) return "🙏";
+  if (lower.includes("thank")) return "🙏";
+  if (lower.includes("donut")) return "🍩";
+  if (lower.includes("bathroom")) return "🚻";
+  if (lower.includes("left")) return "⬅️";
+  if (lower.includes("right")) return "➡️";
+  if (lower.includes("apple")) return "🍎";
+  if (lower.includes("bag")) return "🛍️";
+  if (lower.includes("friend")) return "👋";
+  if (lower.includes("ice cream")) return "🍦";
+  if (lower.includes("hello") || lower.includes("hi")) return "👋";
+  return "💬";
+};
+
+const buildCheckpointsFromScenario = (scenarioId: string): { title: string; icon: string; checkpoints: Checkpoint[] } => {
+  if (scenarioId === "airport-checkin") {
+    return {
+      title: "Airport Check-in",
+      icon: "✈️",
+      checkpoints: airportCheckInScenario,
+    };
+  }
+
+  const sourceScenario = scenarios.find((scenario) => scenario.id === scenarioId);
+  if (!sourceScenario) {
+    return {
+      title: "Airport Check-in",
+      icon: "✈️",
+      checkpoints: airportCheckInScenario,
+    };
+  }
+
+  const checkpoints: Checkpoint[] = sourceScenario.steps.map((step) => {
+    const preferredOptions = step.options.filter((option) => option.isCorrect);
+    const options = preferredOptions.length > 0 ? preferredOptions : step.options;
+    const responseCards = options.map((option, index) => ({
+      id: toCardId(option.label, index),
+      label: option.label,
+      emoji: option.icon || "💬",
+    }));
+    const supportLabels = [
+      "yes",
+      "no",
+      "please",
+      "thank you",
+      "I need help",
+      ...tokenize(step.prompt).slice(0, 4),
+      ...tokenize(step.context).slice(0, 4),
+    ];
+    const supportCards = Array.from(new Set(supportLabels))
+      .filter((label) => label.length >= 2)
+      .slice(0, 8)
+      .map((label, index) => ({
+        id: `support-${toCardId(label, index)}`,
+        label,
+        emoji: pickEmoji(label),
+      }))
+      .filter((card) => !responseCards.some((existing) => existing.label.toLowerCase() === card.label.toLowerCase()));
+    const cards = [...responseCards, ...supportCards];
+
+    const keywords = Array.from(
+      new Set(
+        options.flatMap((option) => [option.label.toLowerCase(), ...tokenize(option.label)])
+      )
+    );
+    const firstOption = options[0];
+
+    return {
+      id: step.id,
+      mascotPrompt: step.prompt,
+      hintPrompt: firstOption ? `Try saying: "${firstOption.label}"` : "Try a short response.",
+      aacHintPrompt: firstOption ? `Try tapping: ${firstOption.label}` : "Try selecting one response card.",
+      keywords,
+      aacPictureCards: cards,
+      validAacCombinations: responseCards.map((card) => [card.id]),
+      successResponse: firstOption?.feedback || "Great response. Let's continue.",
+      extractField: step.id,
+    };
+  });
+
+  checkpoints.push({
+    id: "complete",
+    mascotPrompt: `Great work! You completed ${sourceScenario.title}.`,
+    hintPrompt: "",
+    keywords: [],
+    aacPictureCards: [],
+    successResponse: "",
+  });
+
+  return {
+    title: sourceScenario.title,
+    icon: sourceScenario.icon,
+    checkpoints,
+  };
+};
+
+const AirportCheckIn = ({ onBack, mode = "voice", scenarioId = "airport-checkin" }: AirportCheckInProps) => {
   const profile = getProfile();
   const effectiveProfile = profile || {
     name: "Traveler",
@@ -27,6 +140,8 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
     createdAt: new Date().toISOString(),
   };
   const userLanguage = profile?.preferredLanguage || "en-US";
+  const scenarioData = buildCheckpointsFromScenario(scenarioId);
+  const checkpoints = scenarioData.checkpoints;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [mascotMessage, setMascotMessage] = useState("");
@@ -54,11 +169,11 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
   } = useSpeechRecognition();
   const { speak, isSpeaking, stop: stopSpeaking } = useSpeechSynthesis();
 
-  const lastCheckpointIndex = airportCheckInScenario.length - 1;
+  const lastCheckpointIndex = checkpoints.length - 1;
   const safeIndex = Math.min(Math.max(currentIndex, 0), lastCheckpointIndex);
-  const checkpoint = airportCheckInScenario[safeIndex];
+  const checkpoint = checkpoints[safeIndex];
   const isLastCheckpoint = safeIndex === lastCheckpointIndex;
-  const progress = (safeIndex / lastCheckpointIndex) * 100;
+  const progress = lastCheckpointIndex > 0 ? (safeIndex / lastCheckpointIndex) * 100 : 100;
   const availableCards = checkpoint?.aacPictureCards.filter(Boolean) ?? [];
 
   const getCardById = useCallback(
@@ -68,16 +183,45 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
 
   const isValidAacSelection = useCallback(
     (selectedIds: string[]) => {
-      if (!checkpoint?.validAacCombinations?.length) return false;
+      if (!checkpoint || selectedIds.length === 0) return false;
+
+      if (!checkpoint.validAacCombinations?.length) return false;
       const normalized = [...selectedIds].sort();
-      return checkpoint.validAacCombinations.some((combo) => {
+      const exactMatch = checkpoint.validAacCombinations.some((combo) => {
         const sortedCombo = [...combo].sort();
         if (sortedCombo.length !== normalized.length) return false;
         return sortedCombo.every((id, idx) => id === normalized[idx]);
       });
+
+      if (exactMatch) return true;
+
+      // Relaxed AAC check: allow short but meaningful answers (e.g., only "Tokyo")
+      // by matching selected labels against checkpoint keywords.
+      const selectedMessage = selectedIds
+        .map((id) => getCardById(id)?.label?.toLowerCase().trim() || "")
+        .filter(Boolean)
+        .join(" ");
+      if (!selectedMessage) return false;
+
+      return checkpoint.keywords.some((keyword) =>
+        selectedMessage.includes(keyword.toLowerCase().trim())
+      );
     },
-    [checkpoint]
+    [checkpoint, getCardById]
   );
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsComplete(false);
+    setCapturedAnswers({});
+    setCoachingTip("");
+    setAacStrip([]);
+    setWaitingForResponse(false);
+    stopListening();
+    stopSpeaking();
+    resetTranscript();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenarioId, mode]);
 
   useEffect(() => {
     if (!checkpoint) return;
@@ -114,12 +258,18 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
   }, [currentIndex]);
 
   useEffect(() => {
-    if (!waitingForResponse || isLastCheckpoint) return;
+    if (!waitingForResponse || isLastCheckpoint || selectedMode === "realistic") return;
     const timer = setTimeout(() => setShowHint(true), 9000);
     setHintTimer(timer);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [waitingForResponse]);
+  }, [waitingForResponse, selectedMode]);
+
+  useEffect(() => {
+    if (selectedMode === "realistic") {
+      setShowHint(false);
+    }
+  }, [selectedMode]);
 
   const processResponse = useCallback(
     async (userSpeech: string) => {
@@ -203,8 +353,12 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
       setAacStrip([]);
       return;
     }
-    setMascotMessage(checkpoint.hintPrompt);
-    void speak(checkpoint.hintPrompt, userLanguage);
+    const fallbackMessage =
+      selectedMode === "realistic"
+        ? "Sorry, I didn't catch that. Could you answer again?"
+        : checkpoint.hintPrompt;
+    setMascotMessage(fallbackMessage);
+    void speak(fallbackMessage, userLanguage);
     setWaitingForResponse(true);
   };
 
@@ -232,19 +386,24 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
           transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
           className="text-8xl mb-6"
         >
-          ✈️
+          {scenarioData.icon}
         </motion.div>
         <h2 className="font-display text-3xl font-bold text-foreground mb-3">
-          Check-in Complete!
+          Scenario Complete!
         </h2>
         <p className="text-lg text-muted-foreground mb-8">
-          Nice work, {profile?.name || "traveler"}. You completed this guided airport check-in.
+          Nice work, {profile?.name || "traveler"}. You completed "{scenarioData.title}".
         </p>
         <div className="mb-8 bg-card border-2 border-border rounded-xl p-4 text-left">
           <p className="text-sm font-semibold text-muted-foreground mb-2">Session summary</p>
-          <p className="text-foreground text-sm">Destination: {capturedAnswers.destination || "Not captured"}</p>
-          <p className="text-foreground text-sm">Passengers: {capturedAnswers.passengers || "Not captured"}</p>
-          <p className="text-foreground text-sm">Luggage: {capturedAnswers.luggage || "Not captured"}</p>
+          {Object.keys(capturedAnswers).length === 0 && (
+            <p className="text-foreground text-sm">No responses were captured.</p>
+          )}
+          {Object.entries(capturedAnswers).map(([field, value]) => (
+            <p key={field} className="text-foreground text-sm">
+              {field.replace(/-/g, " ")}: {value || "Not captured"}
+            </p>
+          ))}
         </div>
         <div className="flex items-center justify-center gap-2 mb-8">
           {[...Array(3)].map((_, i) => (
@@ -290,10 +449,10 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
         </Button>
         <div className="flex-1">
           <h2 className="font-display text-xl font-bold text-foreground">
-            ✈️ Airport Check-in {mode === "aac" ? "(AAC Mode)" : "(Voice Mode)"}
+            {scenarioData.icon} {scenarioData.title} {mode === "aac" ? "(AAC Mode)" : "(Voice Mode)"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Step {currentIndex + 1} of {airportCheckInScenario.length}
+            Step {currentIndex + 1} of {checkpoints.length}
           </p>
         </div>
       </div>
@@ -435,7 +594,7 @@ const AirportCheckIn = ({ onBack, mode = "voice" }: AirportCheckInProps) => {
           <MascotAvatar isSpeaking={isSpeaking} message={mascotMessage} />
 
           <AnimatePresence>
-            {showHint && checkpoint?.hintPrompt && (
+            {selectedMode !== "realistic" && showHint && checkpoint?.hintPrompt && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}

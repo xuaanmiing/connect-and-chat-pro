@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { scenarios, Scenario, categoryInfo } from "@/data/scenarios";
-import ScenarioCard from "@/components/ScenarioCard";
-import ScenarioPlayer from "@/components/ScenarioPlayer";
+import { scenarios } from "@/data/scenarios";
 import AirportCheckIn from "@/components/AirportCheckIn";
 import TherapistDashboard from "@/components/TherapistDashboard";
 import Onboarding from "@/pages/Onboarding";
@@ -10,25 +8,33 @@ import ModeSelect from "@/pages/ModeSelect";
 import MultiplayerLobby from "@/pages/MultiplayerLobby";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getProfile, clearProfile } from "@/lib/userProfile";
-import { LogOut, Plane, MessageSquareText } from "lucide-react";
+import { LogOut } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.png";
 
-type CategoryFilter = "all" | "food" | "help" | "shopping" | "social";
 type AppView =
   | "onboarding"
   | "mode-select"
   | "therapist-dashboard"
   | "home"
-  | "scenario"
   | "airport-checkin"
   | "airport-checkin-aac"
   | "multiplayer-lobby";
+type PracticeMode = "airport-voice" | "airport-aac";
 
 const Index = () => {
   const [view, setView] = useState<AppView>("onboarding");
-  const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
-  const [filter, setFilter] = useState<CategoryFilter>("all");
+  const [selectedMode, setSelectedMode] = useState<PracticeMode>("airport-voice");
+  const [selectedScenarioId, setSelectedScenarioId] = useState("airport-checkin");
 
   useEffect(() => {
     const profile = getProfile();
@@ -42,8 +48,17 @@ const Index = () => {
     setView("onboarding");
   };
 
-  const filteredScenarios =
-    filter === "all" ? scenarios : scenarios.filter((s) => s.category === filter);
+  const handleStartSelectedPractice = () => {
+    if (selectedMode === "airport-voice") {
+      setView("airport-checkin");
+      return;
+    }
+
+    if (selectedMode === "airport-aac") {
+      setView("airport-checkin-aac");
+      return;
+    }
+  };
 
   if (view === "onboarding") {
     return (
@@ -89,7 +104,7 @@ const Index = () => {
   if (view === "airport-checkin") {
     return (
       <div className="min-h-screen bg-background py-6">
-        <AirportCheckIn onBack={() => setView("home")} mode="voice" />
+        <AirportCheckIn onBack={() => setView("home")} mode="voice" scenarioId={selectedScenarioId} />
       </div>
     );
   }
@@ -97,21 +112,7 @@ const Index = () => {
   if (view === "airport-checkin-aac") {
     return (
       <div className="min-h-screen bg-background py-6">
-        <AirportCheckIn onBack={() => setView("home")} mode="aac" />
-      </div>
-    );
-  }
-
-  if (view === "scenario" && activeScenario) {
-    return (
-      <div className="min-h-screen bg-background py-8">
-        <ScenarioPlayer
-          scenario={activeScenario}
-          onBack={() => {
-            setActiveScenario(null);
-            setView("home");
-          }}
-        />
+        <AirportCheckIn onBack={() => setView("home")} mode="aac" scenarioId={selectedScenarioId} />
       </div>
     );
   }
@@ -143,13 +144,6 @@ const Index = () => {
                 Interactive scenarios to help you practise everyday communication
                 skills — at your own pace, in a safe space.
               </p>
-              <Button
-                size="xl"
-                variant="accent"
-                onClick={() => setView("airport-checkin")}
-              >
-                Try Airport Check-in ✈️
-              </Button>
             </motion.div>
             <motion.div
               className="flex-shrink-0 w-64 md:w-80"
@@ -167,101 +161,62 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Featured: Airport Check-in */}
+      {/* Unified scenario menu */}
       <section className="max-w-4xl mx-auto px-4 py-8">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-          <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-4">Airport Check-in Practice</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card
-              className="border-2 border-primary/20 hover:border-primary cursor-pointer transition-colors"
-              onClick={() => setView("airport-checkin")}
-            >
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-3xl flex-shrink-0">
-                  <Plane className="w-8 h-8 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-display text-xl font-bold text-foreground">Voice Mode</h3>
-                  <p className="text-muted-foreground">
-                    Speak to the mascot to complete airport check-in using your voice.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="border-2 border-accent/30 hover:border-accent cursor-pointer transition-colors"
-              onClick={() => setView("airport-checkin-aac")}
-            >
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center text-3xl flex-shrink-0">
-                  <MessageSquareText className="w-8 h-8 text-accent" />
-                </div>
-                <div>
-                  <h3 className="font-display text-xl font-bold text-foreground">AAC Mode</h3>
-                  <p className="text-muted-foreground">
-                    Practice check-in with AAC (Augmentative and Alternative Communication) responses using phrase buttons or typed messages.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Text-based Scenarios */}
-      <main id="scenarios" className="max-w-4xl mx-auto px-4 py-8">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-          <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-2">
-            Text Scenarios
-          </h2>
+          <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-2">Scenario Practice</h2>
           <p className="text-muted-foreground text-lg mb-6">
-            Pick a situation you'd like to practise with text-based choices.
+            Choose a scenario from the menu, then start practice.
           </p>
 
-          <div
-            className="flex flex-wrap gap-2 mb-8"
-            role="tablist"
-            aria-label="Filter scenarios by category"
-          >
-            <Button
-              variant={filter === "all" ? "default" : "secondary"}
-              size="sm"
-              onClick={() => setFilter("all")}
-              role="tab"
-              aria-selected={filter === "all"}
-            >
-              All
-            </Button>
-            {(Object.keys(categoryInfo) as Array<keyof typeof categoryInfo>).map((key) => (
-              <Button
-                key={key}
-                variant={filter === key ? "default" : "secondary"}
-                size="sm"
-                onClick={() => setFilter(key)}
-                role="tab"
-                aria-selected={filter === key}
-              >
-                {categoryInfo[key].label}
-              </Button>
-            ))}
-          </div>
+          <Card className="border-2 border-primary/20">
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Mode</p>
+                <Select
+                  value={selectedMode}
+                  onValueChange={(value) => setSelectedMode(value as PracticeMode)}
+                >
+                  <SelectTrigger aria-label="Select mode">
+                    <SelectValue placeholder="Choose a mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Practice Mode</SelectLabel>
+                      <SelectItem value="airport-voice">Voice Mode</SelectItem>
+                      <SelectItem value="airport-aac">AAC Mode</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {filteredScenarios.map((scenario, index) => (
-              <ScenarioCard
-                key={scenario.id}
-                scenario={scenario}
-                onClick={() => {
-                  setActiveScenario(scenario);
-                  setView("scenario");
-                }}
-                index={index}
-              />
-            ))}
-          </div>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Scenario</p>
+                <Select value={selectedScenarioId} onValueChange={setSelectedScenarioId}>
+                  <SelectTrigger aria-label="Select scenario">
+                    <SelectValue placeholder="Choose a scenario" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>All Scenarios</SelectLabel>
+                      <SelectItem value="airport-checkin">✈️ Airport Check-in</SelectItem>
+                      {scenarios.map((scenario) => (
+                        <SelectItem key={scenario.id} value={scenario.id}>
+                          {scenario.icon} {scenario.title}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button size="lg" variant="accent" onClick={handleStartSelectedPractice}>
+                Start Selected Scenario
+              </Button>
+            </CardContent>
+          </Card>
         </motion.div>
-      </main>
+      </section>
 
       <footer className="border-t border-border py-8 text-center">
         <p className="text-sm text-muted-foreground">
