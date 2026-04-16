@@ -1,73 +1,127 @@
-# Welcome to your Lovable project
+# CommPractice
 
-## Project info
+CommPractice is a scenario-based communication practice web app built with React, TypeScript, and Vite. It helps learners practice everyday conversations in a safe, low-pressure environment through interactive role-play.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Live Demo
 
-## How can I edit this code?
+[CommPractice on Vercel](https://connect-and-chat-pro.vercel.app/)
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- Guided conversation practice with scenario flows
+- Airport check-in practice in voice mode
+- Airport check-in practice in AAC mode
+- Onboarding and role-based flow (learner and therapist)
+- Multiplayer lobby flow
+- AI-assisted checkpoint analysis with local fallback when no API key is configured
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui and Radix UI
+- Framer Motion
+- TanStack Query
+- Vitest and Testing Library
 
-**Use your preferred IDE**
+## Project Structure
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```text
+src/
+  components/   Reusable feature and UI components
+  data/         Scenario and airport check-in data
+  hooks/        Custom React hooks
+  lib/          AI agent and utility logic
+  pages/        Page-level flows
+  test/         Test setup and test files
+public/
+  aac-custom/   AAC custom assets
+  aac-source/   AAC source assets
+  aac-supplement/ AAC supplementary assets
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Prerequisites
 
-Follow these steps:
+- Node.js 18+
+- npm 9+
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Getting Started
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1. Clone the repository.
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+git clone git@github.com:broccoli0616/connect-and-chat-pro.git
+cd connect-and-chat-pro
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+1. Install dependencies.
+
+```bash
+npm install
+```
+
+1. Create your local environment file.
+
+```bash
+cp .env.example .env
+```
+
+1. Set your API key in `.env` if you want AI evaluation.
+
+```env
+VITE_GROQ_API_KEY=your_groq_api_key_here
+```
+
+1. Start the development server.
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+1. Open the local URL shown in terminal (usually [http://localhost:5173](http://localhost:5173)).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Available Scripts
 
-**Use GitHub Codespaces**
+- `npm run dev`: Start development server
+- `npm run build`: Build for production
+- `npm run build:dev`: Build with development mode
+- `npm run preview`: Preview production build locally
+- `npm run lint`: Run ESLint
+- `npm test`: Run tests once with Vitest
+- `npm run test:watch`: Run tests in watch mode
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Testing
 
-## What technologies are used for this project?
+Run tests:
 
-This project is built with:
+```bash
+npm test
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Test files and setup are in `src/test`.
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Production deployment is hosted on Vercel:
 
-## Can I connect a custom domain to my Lovable project?
+[Vercel Deployment](https://connect-and-chat-pro.vercel.app/)
 
-Yes, you can!
+## Roadmap
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- Expand scenario coverage for more daily communication situations
+- Improve coaching quality and feedback detail
+- Enhance multiplayer interactions
+- Explore immersive communication practice experiences
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Project Poster
+
+![CommPractice Project Poster](./src/assets/commpractice_poster%20%281%29.png)
+## Team
+
+- Li Xuanming
+- Lin Muxi
+- Yang Boxiang
+- Yu Letian
+- Zhang Jiayi
