@@ -6,6 +6,9 @@ import ScenarioPlayer from "@/components/ScenarioPlayer";
 import AirportCheckIn from "@/components/AirportCheckIn";
 import Onboarding from "@/pages/Onboarding";
 import ModeSelect from "@/pages/ModeSelect";
+import MultiplayerLobby from "@/pages/MultiplayerLobby";
+import MultiplayerRoom from "@/pages/MultiplayerRoom";
+import PostMatchFeedback from "@/pages/PostMatchFeedback"; 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getProfile, clearProfile } from "@/lib/userProfile";
@@ -13,12 +16,15 @@ import { LogOut, Plane } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.png";
 
 type CategoryFilter = "all" | "food" | "help" | "shopping" | "social";
-type AppView = "onboarding" | "mode-select" | "home" | "scenario" | "airport-checkin";
+type AppView = "onboarding" | "mode-select" | "home" | "scenario" | "airport-checkin" | "multiplayer-lobby" | "multiplayer-room" | "post-match-feedback";
 
 const Index = () => {
   const [view, setView] = useState<AppView>("onboarding");
   const [activeScenario, setActiveScenario] = useState<Scenario | null>(null);
   const [filter, setFilter] = useState<CategoryFilter>("all");
+  
+  // NEW: State to remember which room they were just in!
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     const profile = getProfile();
@@ -41,8 +47,37 @@ const Index = () => {
     return (
       <ModeSelect
         onSelectSingle={() => setView("home")}
-        onSelectMulti={() => {}}
+        onSelectMulti={() => setView("multiplayer-lobby")}
         onBack={handleLogout}
+      />
+    );
+  }
+
+  if (view === "multiplayer-lobby") {
+    return (
+      <MultiplayerLobby 
+        onBack={() => setView("mode-select")}
+        onMatchFound={(roomId) => {
+          console.log("Match found! Room:", roomId);
+          setActiveRoomId(roomId); // <-- Save the Room ID here
+          setView("multiplayer-room");
+        }}
+      />
+    );
+  }
+
+  if (view === "multiplayer-room") {
+    return <MultiplayerRoom onLeave={() => setView("post-match-feedback")} />;
+  }
+
+  if (view === "post-match-feedback") {
+    return (
+      <PostMatchFeedback 
+        roomId={activeRoomId} // <-- Pass it to the feedback form
+        onComplete={() => {
+          setActiveRoomId(null); // Clear it out when done
+          setView("mode-select");
+        }} 
       />
     );
   }

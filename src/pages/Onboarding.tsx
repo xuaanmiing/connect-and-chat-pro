@@ -5,7 +5,7 @@ import { saveProfile, UserProfile } from "@/lib/userProfile";
 import { User, ArrowRight, ArrowLeft } from "lucide-react";
 import { auth, db } from "@/firebase";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore"; // <-- Added getDoc here!
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -37,9 +37,27 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     setError("");
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // Save local profile so the app knows we are logged in
-      saveProfile({ name: email.split('@')[0], age: "25", role: "learner", createdAt: new Date().toISOString() });
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      
+      // FETCH THE REAL TAG FROM THE DATABASE
+      let userRole = "learner"; // default fallback
+      try {
+        const userDoc = await getDoc(doc(db, "users", cred.user.uid));
+        if (userDoc.exists() && userDoc.data().role) {
+          userRole = userDoc.data().role;
+        }
+      } catch (dbErr) {
+        console.error("Could not fetch user role, defaulting to learner", dbErr);
+      }
+
+      // Save the REAL profile so the app knows who we are
+      saveProfile({ 
+        name: email.split('@')[0], 
+        age: "25", 
+        role: userRole as UserProfile["role"], 
+        createdAt: new Date().toISOString() 
+      });
+      
       onComplete();
     } catch (err: any) {
       setError("Invalid email or password.");
@@ -54,18 +72,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
     setIsLoading(true);
 
     try {
-      // 1. Create the Auth account
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-      // 2. Fire-and-forget Firestore save. (Removing 'await' prevents the infinite freeze!)
       setDoc(doc(db, "users", cred.user.uid), {
         name, age, role, email, createdAt: new Date()
       }).catch(err => console.error("Database save delayed:", err));
 
-      // 3. Save to local storage to trigger the ModeSelect screen
       saveProfile({ name, age, role: role as UserProfile["role"], createdAt: new Date().toISOString() });
       
-      // 4. Trigger the app to move forward!
       onComplete();
     } catch (err: any) {
       setError(err.message);
@@ -92,7 +106,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           </p>
         </div>
 
-        {/* --- VIEW: INITIAL CHOICE --- */}
         {view === "initial" && (
           <motion.div key="initial" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             <Button size="lg" className="w-full" onClick={() => setView("login")}>
@@ -105,7 +118,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           </motion.div>
         )}
 
-        {/* --- VIEW: LOGIN --- */}
         {view === "login" && (
           <motion.div key="login" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</div>}
@@ -136,7 +148,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           </motion.div>
         )}
 
-        {/* --- VIEW: REGISTER (Original Lovable Steps) --- */}
         {view === "register" && step === 0 && (
           <motion.div key="name" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             <label className="block text-sm font-semibold text-foreground">What's your name?</label>
@@ -200,7 +211,6 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
           </motion.div>
         )}
 
-        {/* NEW STEP 3: FIREBASE CREDENTIALS */}
         {view === "register" && step === 3 && (
           <motion.div key="credentials" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             <label className="block text-sm font-semibold text-foreground">Secure your account</label>
