@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { saveProfile, UserProfile } from "@/lib/userProfile";
 import { User, ArrowRight, ArrowLeft } from "lucide-react";
@@ -13,9 +14,15 @@ interface OnboardingProps {
 
 const roles = [
   { value: "learner" as const, label: "I'm practising", icon: "🎓" },
-  { value: "caregiver" as const, label: "I'm a caregiver", icon: "🤝" },
   { value: "therapist" as const, label: "I'm a therapist", icon: "💼" },
 ];
+
+const languages = [
+  { value: "en-US" as const, label: "English" },
+  { value: "zh-CN" as const, label: "Chinese (Simplified)" },
+];
+
+type AuthMode = "chooser" | "sign-in" | "register";
 
 const Onboarding = ({ onComplete }: OnboardingProps) => {
   const [view, setView] = useState<"initial" | "login" | "register">("initial");
@@ -24,6 +31,9 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
   // Form State
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
+  const [signInName, setSignInName] = useState("");
+  const [password, setPassword] = useState("");
+  const [signInError, setSignInError] = useState("");
   const [role, setRole] = useState<UserProfile["role"] | "">("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -85,6 +95,26 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
       setError(err.message);
       setIsLoading(false);
     }
+  };
+
+  const handleSubmitFakeSignIn = () => {
+    const normalizedName = signInName.trim().toLowerCase();
+    if (!normalizedName || !password.trim()) {
+      setSignInError("Enter both username and password.");
+      return;
+    }
+
+    const matchedProfile = savedProfiles.find(
+      (profile) => profile.name.trim().toLowerCase() === normalizedName
+    );
+
+    if (!matchedProfile) {
+      setSignInError("No saved profile matches that username. Register first or try a saved name.");
+      return;
+    }
+
+    setSignInError("");
+    handleSignIn(matchedProfile);
   };
 
   return (
@@ -151,12 +181,12 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         {view === "register" && step === 0 && (
           <motion.div key="name" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             <label className="block text-sm font-semibold text-foreground">What's your name?</label>
-            <input
+            <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter your name"
-              className="w-full h-14 rounded-xl border-2 border-border bg-card px-4 text-lg focus:border-primary focus:outline-none"
+              className="h-14 rounded-xl border-2 border-border bg-card px-4 text-lg"
             />
             <Button size="lg" className="w-full" disabled={!name.trim()} onClick={() => setStep(1)}>
               Next <ArrowRight className="w-5 h-5 ml-2" />
@@ -168,14 +198,14 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
         {view === "register" && step === 1 && (
           <motion.div key="age" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             <label className="block text-sm font-semibold text-foreground">How old are you?</label>
-            <input
+            <Input
               type="number"
               value={age}
               onChange={(e) => setAge(e.target.value)}
               placeholder="Enter your age"
               min="1"
               max="120"
-              className="w-full h-14 rounded-xl border-2 border-border bg-card px-4 text-lg focus:border-primary focus:outline-none"
+              className="h-14 rounded-xl border-2 border-border bg-card px-4 text-lg"
             />
             <div className="flex gap-2">
               <Button size="lg" variant="outline" onClick={() => setStep(0)}>Back</Button>
