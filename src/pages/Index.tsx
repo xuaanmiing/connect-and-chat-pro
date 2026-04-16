@@ -6,6 +6,8 @@ import TherapistDashboard from "@/components/TherapistDashboard";
 import Onboarding from "@/pages/Onboarding";
 import ModeSelect from "@/pages/ModeSelect";
 import MultiplayerLobby from "@/pages/MultiplayerLobby";
+import MultiplayerRoom from "@/pages/MultiplayerRoom";
+import PostMatchFeedback from "@/pages/PostMatchFeedback"; 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -21,6 +23,7 @@ import { getProfile, clearProfile } from "@/lib/userProfile";
 import { LogOut } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.png";
 
+// Combined all views from both you and your friend!
 type AppView =
   | "onboarding"
   | "mode-select"
@@ -28,17 +31,24 @@ type AppView =
   | "home"
   | "airport-checkin"
   | "airport-checkin-aac"
-  | "multiplayer-lobby";
+  | "multiplayer-lobby"
+  | "multiplayer-room"
+  | "post-match-feedback";
+
 type PracticeMode = "airport-voice" | "airport-aac";
 
 const Index = () => {
   const [view, setView] = useState<AppView>("onboarding");
   const [selectedMode, setSelectedMode] = useState<PracticeMode>("airport-voice");
   const [selectedScenarioId, setSelectedScenarioId] = useState("airport-checkin");
+  
+  // Your Firebase Room State
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     const profile = getProfile();
     if (profile) {
+      // Friend's logic: Send therapists to their specific dashboard!
       setView(profile.role === "therapist" ? "therapist-dashboard" : "mode-select");
     }
   }, []);
@@ -92,15 +102,37 @@ const Index = () => {
     );
   }
 
+  // Your Firebase Matchmaking Routing!
   if (view === "multiplayer-lobby") {
     return (
-      <MultiplayerLobby
+      <MultiplayerLobby 
         onBack={() => setView("mode-select")}
-        onMatchReady={() => setView("airport-checkin")}
+        onMatchFound={(roomId) => {
+          console.log("Match found! Room:", roomId);
+          setActiveRoomId(roomId); 
+          setView("multiplayer-room");
+        }}
       />
     );
   }
 
+  if (view === "multiplayer-room") {
+    return <MultiplayerRoom onLeave={() => setView("post-match-feedback")} />;
+  }
+
+  if (view === "post-match-feedback") {
+    return (
+      <PostMatchFeedback 
+        roomId={activeRoomId} 
+        onComplete={() => {
+          setActiveRoomId(null); 
+          setView("mode-select");
+        }} 
+      />
+    );
+  }
+
+  // Friend's dynamic scenario routing!
   if (view === "airport-checkin") {
     return (
       <div className="min-h-screen bg-background py-6">
@@ -119,6 +151,7 @@ const Index = () => {
 
   const profile = getProfile();
 
+  // The main Home view containing your friend's new unified scenario menu
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}

@@ -195,8 +195,6 @@ const AirportCheckIn = ({ onBack, mode = "voice", scenarioId = "airport-checkin"
 
       if (exactMatch) return true;
 
-      // Relaxed AAC check: allow short but meaningful answers (e.g., only "Tokyo")
-      // by matching selected labels against checkpoint keywords.
       const selectedMessage = selectedIds
         .map((id) => getCardById(id)?.label?.toLowerCase().trim() || "")
         .filter(Boolean)
@@ -405,24 +403,12 @@ const AirportCheckIn = ({ onBack, mode = "voice", scenarioId = "airport-checkin"
             </p>
           ))}
         </div>
-        <div className="flex items-center justify-center gap-2 mb-8">
-          {[...Array(3)].map((_, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, rotate: -180 }}
-              animate={{ opacity: 1, rotate: 0 }}
-              transition={{ delay: 0.4 + i * 0.15 }}
-            >
-              <Star className="w-8 h-8 fill-accent text-accent" />
-            </motion.div>
-          ))}
-        </div>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button variant="accent" size="lg" onClick={handleRestart}>
-            <RotateCcw className="w-5 h-5" /> Try Again
+            <RotateCcw className="w-5 h-5 mr-2" /> Try Again
           </Button>
           <Button variant="outline" size="lg" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" /> Back
+            <ArrowLeft className="w-5 h-5 mr-2" /> Back to Modes
           </Button>
         </div>
       </motion.div>
@@ -434,188 +420,195 @@ const AirportCheckIn = ({ onBack, mode = "voice", scenarioId = "airport-checkin"
       <div className="max-w-2xl mx-auto px-4 py-10 text-center">
         <p className="text-muted-foreground mb-4">Something went wrong with this step. Please restart.</p>
         <Button variant="accent" onClick={handleRestart}>
-          <RotateCcw className="w-4 h-4" /> Restart Scenario
+          <RotateCcw className="w-4 h-4 mr-2" /> Restart Scenario
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex-1">
-          <h2 className="font-display text-xl font-bold text-foreground">
-            {scenarioData.icon} {scenarioData.title} {mode === "aac" ? "(AAC Mode)" : "(Voice Mode)"}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Step {currentIndex + 1} of {checkpoints.length}
+    <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col min-h-[calc(100vh-4rem)]">
+      <div className="flex-1">
+        {/* Scenario Title Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-1">
+            <h2 className="font-display text-xl font-bold text-foreground">
+              {scenarioData.icon} {scenarioData.title} {mode === "aac" ? "(AAC Mode)" : "(Voice Mode)"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Step {currentIndex + 1} of {checkpoints.length}
+            </p>
+          </div>
+        </div>
+
+        <Progress value={progress} className="mb-4 h-3" />
+
+        {/* AI mode selector */}
+        <div className="mb-6 rounded-xl border bg-card p-3">
+          <p className="text-sm font-medium mb-2">Conversation mode</p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={selectedMode === "coaching" ? "accent" : "outline"}
+              onClick={() => setSelectedMode("coaching")}
+              disabled={isListening || isAnalyzing || isTranscribing}
+            >
+              Coaching
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={selectedMode === "realistic" ? "accent" : "outline"}
+              onClick={() => setSelectedMode("realistic")}
+              disabled={isListening || isAnalyzing || isTranscribing}
+            >
+              Realistic
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {selectedMode === "coaching"
+              ? "AI guides you and gives tips."
+              : "AI behaves like real check-in staff with less guidance."}
           </p>
         </div>
-      </div>
 
-      <Progress value={progress} className="mb-4 h-3" />
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left: input area */}
+          <div className="space-y-4">
+            {mode === "voice" && <CameraFeed />}
 
-      {/* AI mode selector */}
-      <div className="mb-6 rounded-xl border bg-card p-3">
-        <p className="text-sm font-medium mb-2">Conversation mode</p>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedMode === "coaching" ? "accent" : "outline"}
-            onClick={() => setSelectedMode("coaching")}
-            disabled={isListening || isAnalyzing || isTranscribing}
-          >
-            Coaching
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={selectedMode === "realistic" ? "accent" : "outline"}
-            onClick={() => setSelectedMode("realistic")}
-            disabled={isListening || isAnalyzing || isTranscribing}
-          >
-            Realistic
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          {selectedMode === "coaching"
-            ? "AI guides you and gives tips."
-            : "AI behaves like real check-in staff with less guidance."}
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Left: input area */}
-        <div className="space-y-4">
-          {mode === "voice" && <CameraFeed />}
-
-          {/* Voice mic button */}
-          {mode === "voice" && waitingForResponse && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <Button
-                size="xl"
-                variant={isListening ? "destructive" : "accent"}
-                className="w-full"
-                onClick={handleMicToggle}
-                disabled={!isSupported || isSpeaking || isAnalyzing || isTranscribing}
-              >
-                {isListening ? (
-                  <><MicOff className="w-6 h-6" /> Stop Recording</>
-                ) : (
-                  <><Mic className="w-6 h-6" /> Tap to Speak</>
-                )}
-              </Button>
-              {!isSupported && (
-                <p className="text-sm text-destructive text-center mt-2">
-                  Speech recognition is not supported in this browser.
-                </p>
-              )}
-              {speechError && (
-                <p className="text-sm text-destructive text-center mt-2">{speechError}</p>
-              )}
-            </motion.div>
-          )}
-
-          {/* AAC picture cards */}
-          {mode === "aac" && waitingForResponse && (
-            <div className="space-y-3">
-              {/* AAC strip (selected cards) */}
-              <div className="min-h-14 bg-muted rounded-xl p-2 flex flex-wrap gap-2 items-center">
-                {aacStrip.length === 0 ? (
-                  <p className="text-xs text-muted-foreground px-2">Tap cards below to build your response</p>
-                ) : (
-                  aacStrip.map((cardId) => {
-                    const card = getCardById(cardId);
-                    return card ? (
-                      <span key={cardId} className="bg-card border rounded-lg px-2 py-1 text-sm flex items-center gap-1">
-                        <span>{card.emoji}</span> {card.label}
-                      </span>
-                    ) : null;
-                  })
-                )}
-              </div>
-              {/* Card grid */}
-              <div className="grid grid-cols-4 gap-2">
-                {availableCards.map((card) => (
-                  <button
-                    key={card.id}
-                    onClick={() => handleAacCardSelect(card.id)}
-                    className="flex flex-col items-center gap-1 rounded-xl border bg-card p-2 hover:border-primary transition-colors text-center"
-                  >
-                    <span className="text-2xl">{card.emoji}</span>
-                    <span className="text-xs text-foreground leading-tight">{card.label}</span>
-                  </button>
-                ))}
-              </div>
-              {/* AAC actions */}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleAacUndo} disabled={aacStrip.length === 0}>
-                  Undo
+            {/* Voice mic button */}
+            {mode === "voice" && waitingForResponse && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <Button
+                  size="xl"
+                  variant={isListening ? "destructive" : "accent"}
+                  className="w-full"
+                  onClick={handleMicToggle}
+                  disabled={!isSupported || isSpeaking || isAnalyzing || isTranscribing}
+                >
+                  {isListening ? (
+                    <><MicOff className="w-6 h-6 mr-2" /> Stop Recording</>
+                  ) : (
+                    <><Mic className="w-6 h-6 mr-2" /> Tap to Speak</>
+                  )}
                 </Button>
-                <Button variant="accent" size="sm" onClick={handleAacSend} disabled={aacStrip.length === 0 || isAdvancing}>
-                  Send
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Transcript (voice mode) */}
-          {transcript && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-card border-2 border-border rounded-xl p-4"
-            >
-              <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">You said:</p>
-              <p className="text-foreground text-lg">"{transcript}"</p>
-            </motion.div>
-          )}
-
-          {isAnalyzing && (
-            <div className="bg-muted border rounded-xl p-3 flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> AI agent is analyzing your response...
-            </div>
-          )}
-
-          {isTranscribing && (
-            <div className="bg-muted border rounded-xl p-3 flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Transcribing speech with Whisper...
-            </div>
-          )}
-        </div>
-
-        {/* Right: mascot + hints */}
-        <div className="flex flex-col items-center justify-center gap-6">
-          <MascotAvatar isSpeaking={isSpeaking} message={mascotMessage} />
-
-          <AnimatePresence>
-            {selectedMode !== "realistic" && showHint && checkpoint?.hintPrompt && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="bg-accent/10 border-2 border-accent/20 rounded-xl p-4 flex items-start gap-3 max-w-sm"
-              >
-                <Lightbulb className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-foreground">
-                  {mode === "aac" ? (checkpoint.aacHintPrompt || checkpoint.hintPrompt) : checkpoint.hintPrompt}
-                </p>
+                {!isSupported && (
+                  <p className="text-sm text-destructive text-center mt-2">
+                    Speech recognition is not supported in this browser.
+                  </p>
+                )}
+                {speechError && (
+                  <p className="text-sm text-destructive text-center mt-2">{speechError}</p>
+                )}
               </motion.div>
             )}
-          </AnimatePresence>
 
-          {coachingTip && (
-            <div className="max-w-sm rounded-xl border bg-card p-3 text-sm text-muted-foreground">
-              Coach tip: {coachingTip}
-            </div>
-          )}
+            {/* AAC picture cards */}
+            {mode === "aac" && waitingForResponse && (
+              <div className="space-y-3">
+                {/* AAC strip (selected cards) */}
+                <div className="min-h-14 bg-muted rounded-xl p-2 flex flex-wrap gap-2 items-center">
+                  {aacStrip.length === 0 ? (
+                    <p className="text-xs text-muted-foreground px-2">Tap cards below to build your response</p>
+                  ) : (
+                    aacStrip.map((cardId) => {
+                      const card = getCardById(cardId);
+                      return card ? (
+                        <span key={cardId} className="bg-card border rounded-lg px-2 py-1 text-sm flex items-center gap-1">
+                          <span>{card.emoji}</span> {card.label}
+                        </span>
+                      ) : null;
+                    })
+                  )}
+                </div>
+                {/* Card grid */}
+                <div className="grid grid-cols-4 gap-2">
+                  {availableCards.map((card) => (
+                    <button
+                      key={card.id}
+                      onClick={() => handleAacCardSelect(card.id)}
+                      className="flex flex-col items-center gap-1 rounded-xl border bg-card p-2 hover:border-primary transition-colors text-center"
+                    >
+                      <span className="text-2xl">{card.emoji}</span>
+                      <span className="text-xs text-foreground leading-tight">{card.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* AAC actions */}
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleAacUndo} disabled={aacStrip.length === 0}>
+                    Undo
+                  </Button>
+                  <Button variant="accent" size="sm" onClick={handleAacSend} disabled={aacStrip.length === 0 || isAdvancing}>
+                    Send
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Transcript (voice mode) */}
+            {transcript && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-card border-2 border-border rounded-xl p-4"
+              >
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">You said:</p>
+                <p className="text-foreground text-lg">"{transcript}"</p>
+              </motion.div>
+            )}
+
+            {isAnalyzing && (
+              <div className="bg-muted border rounded-xl p-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" /> AI agent is analyzing your response...
+              </div>
+            )}
+
+            {isTranscribing && (
+              <div className="bg-muted border rounded-xl p-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" /> Transcribing speech with Whisper...
+              </div>
+            )}
+          </div>
+
+          {/* Right: mascot + hints */}
+          <div className="flex flex-col items-center justify-center gap-6">
+            <MascotAvatar isSpeaking={isSpeaking} message={mascotMessage} />
+
+            <AnimatePresence>
+              {selectedMode !== "realistic" && showHint && checkpoint?.hintPrompt && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="bg-accent/10 border-2 border-accent/20 rounded-xl p-4 flex items-start gap-3 max-w-sm"
+                >
+                  <Lightbulb className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-foreground">
+                    {mode === "aac" ? (checkpoint.aacHintPrompt || checkpoint.hintPrompt) : checkpoint.hintPrompt}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {coachingTip && (
+              <div className="max-w-sm rounded-xl border bg-card p-3 text-sm text-muted-foreground">
+                Coach tip: {coachingTip}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* --- NEW: Centered Bottom Back Button matching MultiplayerLobby --- */}
+      <div className="mt-12 text-center pb-8">
+        <Button variant="ghost" onClick={onBack}>
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Modes
+        </Button>
+      </div>
+
     </div>
   );
 };
